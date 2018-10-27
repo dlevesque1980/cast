@@ -77,7 +77,7 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
                 val intent = Intent(MediaControlIntent.ACTION_PLAY)
                 intent.addCategory(MediaControlIntent.CATEGORY_REMOTE_PLAYBACK)
                 intent.setDataAndType(Uri.parse("https://www.w3schools.com/html/mov_bbb.mp4"), "video/mp4")
-                selectedRoute.supp
+
                 if (selectedRoute.supportsControlRequest(intent)) {
                     val callback = object : MediaRouter.ControlRequestCallback() {
                         override fun onResult(data: Bundle) {

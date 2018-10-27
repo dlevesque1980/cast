@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:cast_example/castConsts.dart';
+import 'package:cast_example/receiverConst.dart';
 import 'package:cast/cast.dart';
 
 void main() => runApp(new MyApp());
