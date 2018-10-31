@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.ContentValues.TAG
 import android.net.Uri
 import android.os.Bundle
-import android.se.omapi.Session
 import android.support.v7.media.*
 import android.support.v7.media.RemotePlaybackClient.SessionActionCallback
 import android.util.Log
@@ -40,6 +39,14 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
             val castId: String = call.argument("castId")
             selectRoute(result, castId)
         }
+
+        call.method.equals("unselect") -> unSelectRoute(result)
+
+        call.method.equals("play") -> {
+            val url: String = call.argument("url")
+            val mimeType: String = call.argument("mimeType")
+            play(result, url, mimeType)
+        }
         call.method.equals("dispose") -> disposeChromecast(result)
         call.method.equals("getRoutes") -> getRoutes(result)
         else -> result.notImplemented()
@@ -49,9 +56,9 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
   private fun initChromecast(result: Result, app_id: String) {
       val context = activity.applicationContext
       _mediaRouter = MediaRouter.getInstance(context)
-      val new_app_id = CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID
+      //val new_app_id = CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID
       val mediaRouteSelector = MediaRouteSelector.Builder()
-                                                    .addControlCategory(CastMediaControlIntent.categoryForCast(new_app_id))
+                                                    .addControlCategory(CastMediaControlIntent.categoryForCast(app_id))
                                                     .addControlCategory(MediaControlIntent.CATEGORY_REMOTE_PLAYBACK)
                                                     .build()
       _mediaRouter.addCallback(mediaRouteSelector, _mediaRouterCallback, MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY)
@@ -67,6 +74,28 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
             return
         }
         result.error("Invalid","invalid cast id","")
+    }
+
+    private fun unSelectRoute(result: Result) {
+        _mediaRouter.unselect(MediaRouter.UNSELECT_REASON_DISCONNECTED)
+
+        result.success("route unselected")
+    }
+
+    private fun play(result: Result, url: String, mimeType: String) {
+        _playbackClient?.play(Uri.parse(url), mimeType, null, 0, null, object: RemotePlaybackClient.ItemActionCallback() {
+            override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?, itemId: String?, itemStatus: MediaItemStatus?) {
+                Log.d(TAG,"ItemPlayback OnResult= $sessionStatus")
+                super.onResult(data, sessionId, sessionStatus, itemId, itemStatus)
+            }
+
+            override fun onError(error: String?, code: Int, data: Bundle?) {
+                Log.d(TAG,"ItemPlayback OnError= $error")
+                super.onError(error, code, data)
+            }
+        })
+
+        result.success("Play started")
     }
 
   private fun disposeChromecast(result: Result) {
@@ -109,20 +138,12 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         _playbackClient = RemotePlaybackClient(this@CastPlugin.activity, route)
         val sessionActionCallback = object: SessionActionCallback() {
             override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?) {
-                Log.d(TAG,"OnResult= $sessionStatus")
-                _playbackClient?.play(Uri.parse("https://www.w3schools.com/html/mov_bbb.mp4"),"video/mp4",null, 0, null, object: RemotePlaybackClient.ItemActionCallback() {
-                    override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?, itemId: String?, itemStatus: MediaItemStatus?) {
-                        Log.d(TAG,"ItemPlayback OnResult= $sessionStatus")
-                        super.onResult(data, sessionId, sessionStatus, itemId, itemStatus)
-                    }
-
-                    override fun onError(error: String?, code: Int, data: Bundle?) {
-                        Log.d(TAG,"ItemPlayback OnError= $error")
-                        super.onError(error, code, data)
-                    }
-                })
-                //https://www.w3schools.com/html/mov_bbb.mp4
                 super.onResult(data, sessionId, sessionStatus)
+                Log.d(TAG,"OnResult= $sessionStatus")
+                val arguments = HashMap<String, String>()
+                channel.invokeMethod("castConnected",null)
+
+
             }
 
             override fun onError(error: String?, code: Int, data: Bundle?) {
@@ -131,7 +152,6 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
             }
         }
         _playbackClient?.startSession(this@CastPlugin.activity.intent.extras, sessionActionCallback)
-
     }
 
     override fun onRouteUnselected(router: MediaRouter?, route: MediaRouter.RouteInfo?) {
