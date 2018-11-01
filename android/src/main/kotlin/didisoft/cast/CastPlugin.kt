@@ -32,19 +32,19 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
   override fun onMethodCall(call: MethodCall, result: Result): Unit {
     when {
         call.method.equals("init") -> {
-            val appId: String = call.argument("appId")
+            val appId: String = call.argument("appId")!!
             initChromecast(result, appId)
         }
         call.method.equals("select") -> {
-            val castId: String = call.argument("castId")
+            val castId: String = call.argument("castId")!!
             selectRoute(result, castId)
         }
 
         call.method.equals("unselect") -> unSelectRoute(result)
 
         call.method.equals("play") -> {
-            val url: String = call.argument("url")
-            val mimeType: String = call.argument("mimeType")
+            val url: String = call.argument("url")!!
+            val mimeType: String = call.argument("mimeType")!!
             play(result, url, mimeType)
         }
         call.method.equals("dispose") -> disposeChromecast(result)
