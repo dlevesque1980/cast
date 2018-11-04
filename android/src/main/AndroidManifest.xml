@@ -1,3 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   package="didisoft.cast">
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <application>
+    <meta-data
+        android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+        android:value="didisoft.cast.CastOptionsProvider" />
+    </application>
 </manifest>

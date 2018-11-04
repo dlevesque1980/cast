@@ -1,27 +1,47 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cast/events.dart';
+import 'package:cast/route_props.dart';
 import 'package:flutter/services.dart';
 
 class Cast {
   static Cast _instance;
-  factory Cast() => _instance ??= new Cast._();
+  factory Cast() => _instance ??= Cast._();
   static const MethodChannel _channel = const MethodChannel('didisoft.cast');
-  var connectedController = new StreamController<ConnectedEvent>();
-  Stream<ConnectedEvent> get onChange => connectedController.stream;
+  var connectedController = StreamController<ConnectedEvent>();
+  Stream<ConnectedEvent> get onConnection => connectedController.stream;
+  var routeChangedController = StreamController<RouteChangedEvent>();
+  Stream<RouteChangedEvent> get routeChanged => routeChangedController.stream;
+  Map<String, RouteProps> _routes;
 
   Cast._() {
     _channel.setMethodCallHandler(_callHandler);
+    _routes = Map<String, RouteProps>();
   }
 
   Future initChromecast(appId) async {
     var message = await _channel.invokeMethod('init', {'appId': appId});
+    _setRoutes();
     return message;
   }
 
-  Future<Map> getRoutes() async {
-    var routes = await _channel.invokeMethod('getRoutes');
-    return routes;
+  Future _setRoutes() async {
+    Map routes = await _channel.invokeMethod('getRoutes');
+    _putRoutes(routes);
+    routeChangedController.add(RouteChangedEvent(_routes));
+  }
+
+  void _putRoutes(Map<dynamic, dynamic> routes) {
+    routes.forEach((k, v) {
+      _routes.putIfAbsent(k, () => RouteProps.fromJson(jsonDecode(v)));
+    });
+  }
+
+  void _removeRoutes(Map<dynamic, dynamic> routes) {
+    routes.forEach((k, v) {
+      _routes.remove(k);
+    });
   }
 
   Future<String> selectRoute(String castId) async {
@@ -47,12 +67,15 @@ class Cast {
   Future<Null> _callHandler(MethodCall call) async {
     switch (call.method) {
       case 'castListAdd':
-        var test = call.arguments as Map;
-        test.forEach((k, v) => print('$k: $v'));
+        var routes = call.arguments as Map;
+        _putRoutes(routes);
+        routeChangedController.add(RouteChangedEvent(_routes));
+
         break;
       case 'castListRemove':
-        final dynamic routeInfo = call.arguments['routeInfo'];
-        print(routeInfo);
+        var routes = call.arguments as Map;
+        _removeRoutes(routes);
+        routeChangedController.add(RouteChangedEvent(_routes));
         break;
       case 'castConnected':
         connectedController.add(new ConnectedEvent('connected!'));
