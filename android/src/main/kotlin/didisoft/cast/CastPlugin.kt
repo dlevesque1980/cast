@@ -6,25 +6,16 @@ import android.net.Uri
 import android.os.Bundle
 import android.support.v7.media.*
 import android.support.v7.media.RemotePlaybackClient.SessionActionCallback
-
 import android.util.Log
 import com.google.android.gms.cast.CastMediaControlIntent
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
-import kotlin.collections.mutableMapOf
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import java.util.*
-import com.google.android.gms.cast.framework.Session
-import com.google.android.gms.cast.framework.SessionManagerListener
-import com.google.android.gms.cast.framework.SessionManager
-
-
-
-
 
 
 class CastPlugin(private val activity: Activity, private val channel: MethodChannel) : MethodCallHandler {
@@ -62,6 +53,8 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
                 val mimeType: String = call.argument("mimeType")!!
                 play(result, url, mimeType)
             }
+            call.method.equals("pause") -> pause(result)
+            call.method.equals("resume") -> resume(result)
             call.method.equals("dispose") -> disposeChromecast(result)
             call.method.equals("getRoutes") -> getRoutes(result)
             else -> result.notImplemented()
@@ -132,6 +125,7 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
     }
 
     private fun play(result: Result, url: String, mimeType: String) {
+
         _playbackClient?.play(Uri.parse(url), mimeType, null, 0, null, object : RemotePlaybackClient.ItemActionCallback() {
             override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?, itemId: String?, itemStatus: MediaItemStatus?) {
                 Log.d(TAG, "ItemPlayback OnResult= $data, $sessionId, $sessionStatus")
@@ -145,6 +139,40 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         })
 
         result.success("Play started")
+    }
+
+    private fun pause(result: Result) {
+
+        _playbackClient?.pause(activity.intent.extras, object : RemotePlaybackClient.SessionActionCallback() {
+            override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?) {
+                Log.d(TAG, "sessionPlayback pause OnResult= $data, $sessionId, $sessionStatus")
+                super.onResult(data, sessionId, sessionStatus)
+            }
+
+            override fun onError(error: String?, code: Int, data: Bundle?) {
+                Log.d(TAG, "sessionPlayback pause OnError= $error")
+                super.onError(error, code, data)
+            }
+        })
+
+        result.success("Pause started")
+    }
+
+    private fun resume(result: Result) {
+
+        _playbackClient?.resume(activity.intent.extras, object : RemotePlaybackClient.SessionActionCallback() {
+            override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?) {
+                Log.d(TAG, "sessionPlayback pause OnResult= $data, $sessionId, $sessionStatus")
+                super.onResult(data, sessionId, sessionStatus)
+            }
+
+            override fun onError(error: String?, code: Int, data: Bundle?) {
+                Log.d(TAG, "sessionPlayback pause OnError= $error")
+                super.onError(error, code, data)
+            }
+        })
+
+        result.success("Resume started")
     }
 
     private fun disposeChromecast(result: Result) {
@@ -166,7 +194,7 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
 
 
     private inner class DidisoftMediaRouterCallback : MediaRouter.Callback() {
-        
+
         override fun onRouteAdded(router: MediaRouter?, info: MediaRouter.RouteInfo?) {
             Log.d(TAG, "onRouteAdded: info=$info!!")
             val arguments = getRouteArgument(info!!)
@@ -190,6 +218,14 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
                     super.onResult(data, sessionId, sessionStatus)
                     Log.d(TAG, "OnResult= $sessionStatus")
                     channel.invokeMethod("castConnected", null)
+                    /*if (sessionStatus == null ) {
+                        channel.invokeMethod("castConnected", null)
+                    }
+
+                    when {
+                        sessionStatus?.sessionState!! == MediaSessionStatus.SESSION_STATE_ACTIVE -> channel.invokeMethod("castConnected", null)
+                        else -> channel.invokeMethod("castDisconnected", null)
+                    }*/
                 }
 
                 override fun onError(error: String?, code: Int, data: Bundle?) {

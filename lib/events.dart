@@ -1,8 +1,8 @@
 import 'package:cast/route_props.dart';
 
 class ConnectedEvent {
-  String eventData;
-  ConnectedEvent(this.eventData);
+  bool stateData;
+  ConnectedEvent(this.stateData);
 }
 
 class RouteChangedEvent {

@@ -59,6 +59,16 @@ class Cast {
     return result;
   }
 
+  Future<String> pause() async {
+    var result = await _channel.invokeMethod('pause');
+    return result;
+  }
+
+  Future<String> resume() async {
+    var result = await _channel.invokeMethod('resume');
+    return result;
+  }
+
   Future<String> dispose() async {
     var result = await _channel.invokeMethod('dispose');
     return result;
@@ -70,7 +80,6 @@ class Cast {
         var routes = call.arguments as Map;
         _putRoutes(routes);
         routeChangedController.add(RouteChangedEvent(_routes));
-
         break;
       case 'castListRemove':
         var routes = call.arguments as Map;
@@ -78,7 +87,10 @@ class Cast {
         routeChangedController.add(RouteChangedEvent(_routes));
         break;
       case 'castConnected':
-        connectedController.add(new ConnectedEvent('connected!'));
+        connectedController.add(new ConnectedEvent(true));
+        break;
+      case 'castDisconnected':
+        connectedController.add(new ConnectedEvent(false));
         break;
     }
   }

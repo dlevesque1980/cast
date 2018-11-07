@@ -1,5 +1,8 @@
+import 'dart:ui';
+
 import 'package:cast/events.dart';
 import 'package:cast/route_props.dart';
+import 'package:cast_example/video.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:cast_example/receiverConst.dart';
@@ -16,6 +19,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   AppLifecycleState _lastLifecycleState;
   bool _isConnected = false;
   Cast _cast = new Cast();
+
+  List<Video> _videos = [
+    Video("Sintel", "https://media.w3.org/2010/05/sintel/trailer.mp4", "https://media.w3.org/2010/05/sintel/poster.png", "video/mp4", false, false),
+    Video("Bunny", "https://player.mediaspip.net/IMG/webm/big_buck_bunny_1080p_surround-encoded.webm?1382666749",
+        "https://peach.blender.org/wp-content/uploads/title_anouncement.jpg?x11217", "video/webm", false, false)
+  ];
 
   @override
   void initState() {
@@ -46,18 +55,23 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     });
 
     _cast.onConnection.listen((e) {
-      print(e.eventData);
+      print("connected state: " + e.stateData.toString());
       setState(() {
-        _isConnected = true;
+        _isConnected = e.stateData;
       });
     });
   }
 
   Future<dynamic> disconnect() async {
     var result = await _cast.unselectRoute();
+    for (var video in _videos) {
+      video.isPlaying = false;
+      video.playActive = false;
+    }
     setState(() {
       _isConnected = false;
     });
+
     print(result);
   }
 
@@ -144,13 +158,36 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
               // action button
               ),
-          body: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Center(
-                child: FlatButton(
-                    child: Text("Play sintel"),
-                    onPressed: () => _cast.play("https://media.w3.org/2010/05/sintel/trailer.mp4", "video/mp4").then((message) => print(message)))),
+          body: ListView(
+            padding: const EdgeInsets.only(top: 16.0, bottom: 16.0),
+            children: buildStack(),
           )),
     );
+  }
+
+  List<Widget> buildStack() {
+    return _videos
+        .map((video) => Stack(children: <Widget>[
+              ListTile(
+                leading: Container(child: Image.network(video.poster), width: 100.0, height: 100.0),
+                isThreeLine: false,
+                title: Text(video.title),
+                trailing: IconButton(
+                    icon: Icon(video.isPlaying ? Icons.pause : Icons.play_arrow),
+                    onPressed: () {
+                      if (!video.playActive && !video.isPlaying) {
+                        _cast.play(video.url, video.mimeType).then((message) => print(message));
+                        video.playActive = true;
+                      } else {
+                        video.isPlaying ? _cast.pause() : _cast.resume();
+                      }
+
+                      setState(() {
+                        video.isPlaying = !video.isPlaying;
+                      });
+                    }),
+              ),
+            ]))
+        .toList();
   }
 }
