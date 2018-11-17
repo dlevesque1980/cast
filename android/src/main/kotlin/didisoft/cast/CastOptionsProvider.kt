@@ -14,6 +14,7 @@ class CastOptionsProvider : OptionsProvider {
     }
 
     override fun getCastOptions(context: Context): CastOptions {
+        Log.d(TAG, "AppId = " + AppId)
         return CastOptions.Builder()
                 .setReceiverApplicationId(CastOptionsProvider.AppId)
                 .setEnableReconnectionService(false)

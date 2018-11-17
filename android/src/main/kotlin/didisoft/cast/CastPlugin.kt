@@ -1,7 +1,6 @@
 package didisoft.cast
 
 import android.app.Activity
-import android.content.ContentValues.TAG
 import android.net.Uri
 import android.os.Bundle
 import android.support.v7.media.*
@@ -17,6 +16,7 @@ import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
 import java.util.*
 
+internal var TAG = "FlutterCast"
 
 class CastPlugin(private val activity: Activity, private val channel: MethodChannel) : MethodCallHandler {
     private var _playbackClient: RemotePlaybackClient? = null
