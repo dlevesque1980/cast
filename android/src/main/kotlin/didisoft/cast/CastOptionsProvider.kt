@@ -1,5 +1,6 @@
 package didisoft.cast
 
+import android.util.Log
 import com.google.android.gms.cast.framework.CastOptions
 import com.google.android.gms.cast.framework.OptionsProvider
 import com.google.android.gms.cast.framework.SessionProvider
