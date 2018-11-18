@@ -7,6 +7,7 @@ import android.support.v7.media.*
 import android.support.v7.media.RemotePlaybackClient.SessionActionCallback
 import android.util.Log
 import com.google.android.gms.cast.CastMediaControlIntent
+import com.google.android.gms.cast.framework.CastContext
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import io.flutter.plugin.common.MethodCall
@@ -39,6 +40,7 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
             call.method.equals("init") -> {
                 val appId: String = call.argument("appId")!!
                 CastOptionsProvider.AppId = appId
+                CastContext.getSharedInstance(activity.applicationContext)
                 initChromecast(result, appId)
             }
             call.method.equals("select") -> {
