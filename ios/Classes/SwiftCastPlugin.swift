@@ -73,7 +73,7 @@ public class SwiftCastPlugin: NSObject, FlutterPlugin {
     }
     
     private func getRoutes(result: @escaping FlutterResult) {
-        result(["didicast": "{\"connectionState\": 1, \"id\": \"452\"}","toto": "{\"connectionState\": 1, \"id\": \"452\"}"])
+        result(["temporaryMock": "{\"connectionState\": 1, \"id\": \"452\"}","Mock": "{\"connectionState\": 1, \"id\": \"452\"}"])
     }
     
 }
