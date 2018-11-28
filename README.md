@@ -10,5 +10,3 @@ The example app do it all.
 3. Choose which video you want to play and hit the play button
 4. You can play, pause, resume and Disconnect.
 5. There is and event to know when the media is finished. 
-
-[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://paypal.me/didierlevesque)
