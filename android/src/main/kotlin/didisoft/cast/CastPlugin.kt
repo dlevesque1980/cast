@@ -53,7 +53,9 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
             call.method.equals("play") -> {
                 val url: String = call.argument("url")!!
                 val mimeType: String = call.argument("mimeType")!!
-                play(result, url, mimeType)
+                val metadata: Map<String, String>? = call.argument("metadata")
+                val position: Long = call.argument<Long>("position")!!
+                play(result, url, mimeType, metadata, position)
             }
             call.method.equals("pause") -> pause(result)
             call.method.equals("resume") -> resume(result)
@@ -126,9 +128,10 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         result.success("route unselected")
     }
 
-    private fun play(result: Result, url: String, mimeType: String) {
-
-        _playbackClient?.play(Uri.parse(url), mimeType, null, 0, null, object : RemotePlaybackClient.ItemActionCallback() {
+    private fun play(result: Result, url: String, mimeType: String, metadata: Map<String, String>?, position: Long) {
+        val bundle = Bundle()
+        metadata?.forEach { k, v -> bundle.putString(k, v) }
+        _playbackClient?.play(Uri.parse(url), mimeType, bundle, position, null, object : RemotePlaybackClient.ItemActionCallback() {
             override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?, itemId: String?, itemStatus: MediaItemStatus?) {
                 Log.d(TAG, "ItemPlayback OnResult= $data, $sessionId, $sessionStatus")
                 super.onResult(data, sessionId, sessionStatus, itemId, itemStatus)
