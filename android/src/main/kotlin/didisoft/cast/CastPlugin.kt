@@ -1,13 +1,17 @@
 package didisoft.cast
 
 import android.app.Activity
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.support.v7.media.*
+import android.support.v7.media.MediaRouter.UNSELECT_REASON_STOPPED
 import android.support.v7.media.RemotePlaybackClient.SessionActionCallback
+import android.support.v7.media.MediaItemMetadata
 import android.util.Log
 import com.google.android.gms.cast.CastMediaControlIntent
 import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import io.flutter.plugin.common.MethodCall
@@ -26,6 +30,7 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
     private var _mediaRouteSelector: MediaRouteSelector? = null
 
 
+
     companion object {
         @JvmStatic
         fun registerWith(registrar: Registrar): Unit {
@@ -41,11 +46,17 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
                 val appId: String = call.argument("appId")!!
                 CastOptionsProvider.AppId = appId
                 CastContext.getSharedInstance(activity.applicationContext)
+                CastOptionsProvider.activity = activity
                 initChromecast(result, appId)
             }
             call.method.equals("select") -> {
                 val castId: String = call.argument("castId")!!
                 selectRoute(result, castId)
+            }
+
+            call.method.equals("getPlayerStatus") -> {
+                val itemId: String = call.argument("itemId")!!
+                getPlayerStatus(itemId, result)
             }
 
             call.method.equals("unselect") -> unSelectRoute(result)
@@ -66,7 +77,7 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
     }
 
     private fun initChromecast(result: Result, app_id: String) {
-        //val new_app_id = CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID
+
         if (_mediaRouteSelector == null) {
             _mediaRouteSelector = MediaRouteSelector.Builder()
                     .addControlCategory(CastMediaControlIntent.categoryForCast(app_id))
@@ -79,10 +90,11 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         _mediaRouter.addCallback(_mediaRouteSelector!!, _mediaRouterCallback, MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY)
 
         result.success("chromecast initalized!")
+
     }
 
     private fun getRoutes(result: Result) {
-        Log.d(TAG,"getRoutes")
+        Log.d(TAG, "getRoutes")
         val routes = _mediaRouter.routes
         val isGreaterThanZero: (Int, MediaRouter.RouteInfo?) -> Boolean = { i, _ -> i > 0 }
         val newRoutes = routes.filterIndexed(isGreaterThanZero)
@@ -108,16 +120,18 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
             result.success("route selected")
             return
         }
+
         result.error("Invalid", "invalid cast id", "")
     }
 
     private fun unSelectRoute(result: Result) {
         Log.d(TAG, "unSelectRoute")
-        _playbackClient?.endSession(this@CastPlugin.activity.intent.extras, object : SessionActionCallback() {
+
+        _playbackClient?.endSession(activity.intent.extras, object : SessionActionCallback() {
             override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?) {
                 Log.d(TAG, "Unselected OnResult= $sessionId")
                 super.onResult(data, sessionId, sessionStatus)
-                _mediaRouter.unselect(MediaRouter.UNSELECT_REASON_DISCONNECTED)
+                _mediaRouter.unselect(UNSELECT_REASON_STOPPED)
             }
 
             override fun onError(error: String?, code: Int, data: Bundle?) {
@@ -128,12 +142,32 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         result.success("route unselected")
     }
 
+    private fun getPlayerStatus(itemId: String, result: Result) {
+
+        if (_playbackClient?.hasSession()!!) {
+            _playbackClient?.getStatus(itemId, activity.intent.extras, object : RemotePlaybackClient.ItemActionCallback() {
+                override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?, itemId: String?, itemStatus: MediaItemStatus?) {
+                    Log.d(TAG, "getStatus onResult: $sessionId, $sessionStatus, $itemId, $itemStatus")
+                    super.onResult(data, sessionId, sessionStatus, itemId, itemStatus)
+                }
+
+                override fun onError(error: String?, code: Int, data: Bundle?) {
+                    Log.d(TAG, "getStatus onError: $error, $code, $data")
+                    super.onError(error, code, data)
+                }
+            })
+        }
+
+        result.success("control request success")
+    }
+
     private fun play(result: Result, url: String, mimeType: String, metadata: Map<String, String>?, position: Long) {
         val bundle = Bundle()
         metadata?.forEach { k, v -> bundle.putString(k, v) }
         _playbackClient?.play(Uri.parse(url), mimeType, bundle, position, null, object : RemotePlaybackClient.ItemActionCallback() {
             override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?, itemId: String?, itemStatus: MediaItemStatus?) {
                 Log.d(TAG, "ItemPlayback OnResult= $data, $sessionId, $sessionStatus")
+                channel.invokeMethod("castMediaPlaying", itemId)
                 super.onResult(data, sessionId, sessionStatus, itemId, itemStatus)
             }
 
@@ -151,6 +185,7 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         _playbackClient?.pause(activity.intent.extras, object : RemotePlaybackClient.SessionActionCallback() {
             override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?) {
                 Log.d(TAG, "sessionPlayback pause OnResult= $data, $sessionId, $sessionStatus")
+                channel.invokeMethod("castMediaPaused", null)
                 super.onResult(data, sessionId, sessionStatus)
             }
 
@@ -168,6 +203,7 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         _playbackClient?.resume(activity.intent.extras, object : RemotePlaybackClient.SessionActionCallback() {
             override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?) {
                 Log.d(TAG, "sessionPlayback pause OnResult= $data, $sessionId, $sessionStatus")
+                channel.invokeMethod("castMediaResumed", null)
                 super.onResult(data, sessionId, sessionStatus)
             }
 
@@ -194,9 +230,8 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         val jsonAdapter = moshi.adapter(RouteProps::class.java)
 
         arguments[name] = jsonAdapter.toJson(RouteProps(route.connectionState, route.id))
-        return arguments;
+        return arguments
     }
-
 
     private inner class DidisoftMediaRouterCallback : MediaRouter.Callback() {
 
@@ -212,42 +247,81 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
             channel.invokeMethod("castListRemove", arguments)
         }
 
-
         override fun onRouteSelected(router: MediaRouter?, route: MediaRouter.RouteInfo?) {
             Log.d(TAG, "onRouteSelected: info=$route")
 
-            _playbackClient = RemotePlaybackClient(this@CastPlugin.activity, route)
+            _playbackClient = RemotePlaybackClient(activity, route)
+
+            _playbackClient?.setStatusCallback(object: RemotePlaybackClient.StatusCallback() {
+                override fun onSessionChanged(sessionId: String?) {
+                    Log.d(TAG, "StatusCallback onSessionChanged: $sessionId")
+                    channel.invokeMethod("castSessionChanged", sessionId)
+                    super.onSessionChanged(sessionId)
+                }
+
+                override fun onSessionStatusChanged(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?) {
+                    Log.d(TAG, "StatusCallback onSessionStatusChanged: $data, $sessionId, $sessionStatus")
+                    val arguments = HashMap<String, String>()
+                    arguments["sessionId"] = sessionId ?: ""
+                    arguments["mediaSessionState"] = sessionStatus?.sessionState.toString()
+                    arguments["mediaSessionTimeStamps"] = sessionStatus?.timestamp.toString()
+                    channel.invokeMethod("castSessionStatusChanged", arguments)
+                    super.onSessionStatusChanged(data, sessionId, sessionStatus)
+                }
+
+                override fun onItemStatusChanged(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?, itemId: String?, itemStatus: MediaItemStatus?) {
+                    Log.d(TAG, "StatusCallback onItemStatusChanged: $data, $sessionId, $sessionStatus, $itemId, $itemStatus")
+                    val arguments = HashMap<String, String>()
+                    arguments["sessionId"] = sessionId ?: ""
+                    arguments["sessionState"] = sessionStatus?.sessionState.toString()
+                    arguments["mediaSessionTimeStamps"] = sessionStatus?.timestamp.toString()
+                    arguments["itemId"] = itemId ?: ""
+                    arguments["itemStatus"] =  itemStatus?.playbackState.toString()
+                    arguments["itemDuration"] =  itemStatus?.contentDuration.toString()
+                    arguments["itemPosition"] =  itemStatus?.contentPosition.toString()
+
+
+                    channel.invokeMethod("castItemChanged", arguments)
+                    super.onItemStatusChanged(data, sessionId, sessionStatus, itemId, itemStatus)
+                }
+            })
+
 
             val sessionActionCallback = object : SessionActionCallback() {
                 override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?) {
                     super.onResult(data, sessionId, sessionStatus)
-                    Log.d(TAG, "OnResult= $sessionStatus")
-                    channel.invokeMethod("castConnected", null)
-                    /*if (sessionStatus == null ) {
-                        channel.invokeMethod("castConnected", null)
-                    }
-
-                    when {
-                        sessionStatus?.sessionState!! == MediaSessionStatus.SESSION_STATE_ACTIVE -> channel.invokeMethod("castConnected", null)
-                        else -> channel.invokeMethod("castDisconnected", null)
-                    }*/
+                    Log.d(TAG, "SessionActionCallback OnResult= $data,$sessionId, $sessionStatus")
+                    val arguments = HashMap<String, String>()
+                    arguments["sessionId"] = sessionId ?: ""
+                    channel.invokeMethod("castConnected", arguments)
                 }
 
                 override fun onError(error: String?, code: Int, data: Bundle?) {
-                    Log.d(TAG, "OnError= $error")
+                    Log.d(TAG, "OnError= $error, $code, $data")
                     super.onError(error, code, data)
                 }
             }
 
+            activity.intent.putExtra(CastMediaControlIntent.EXTRA_CAST_RELAUNCH_APPLICATION, false)
+            activity.intent.putExtra(CastMediaControlIntent.EXTRA_CAST_STOP_APPLICATION_WHEN_SESSION_ENDS, false)
+            activity.intent.putExtra(CastMediaControlIntent.EXTRA_DEBUG_LOGGING_ENABLED, true)
+            activity.intent.putExtra(MediaControlIntent.EXTRA_ITEM_STATUS, true)
+            activity.intent.putExtra(MediaControlIntent.EXTRA_SESSION_STATUS, true)
             _playbackClient?.startSession(this@CastPlugin.activity.intent.extras, sessionActionCallback)
+
 
 
         }
 
         override fun onRouteUnselected(router: MediaRouter?, route: MediaRouter.RouteInfo?) {
             Log.d(TAG, "onRouteUnselected: info=$route")
+            channel.invokeMethod("castDisconnected", null)
         }
     }
 
-
+    private inner class StatusListener: RemoteMediaClient.ProgressListener {
+        override fun onProgressUpdated(p0: Long, p1: Long) {
+            Log.d(TAG, "OnProgressUpdated: $p0, $p1")
+        }
+    }
 }
