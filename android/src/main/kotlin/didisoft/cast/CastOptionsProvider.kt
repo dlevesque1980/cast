@@ -20,7 +20,7 @@ class CastOptionsProvider : OptionsProvider {
     }
 
     override fun getCastOptions(context: Context): CastOptions {
-        Log.d(TAG, "AppId = " + AppId)
+        Log.d(TAG, "AppId = " + AppId + ", application = " + activity.toString())
         val notificationOptions = NotificationOptions.Builder()
                 .setActions(Arrays.asList(MediaIntentReceiver.ACTION_SKIP_NEXT,
                         MediaIntentReceiver.ACTION_TOGGLE_PLAYBACK,
