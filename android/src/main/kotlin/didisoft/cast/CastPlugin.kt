@@ -1,7 +1,6 @@
 package didisoft.cast
 
 import android.app.Activity
-import android.content.ContentValues.TAG
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -22,6 +21,7 @@ import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
 import java.util.*
 
+internal var TAG = "FlutterCast"
 
 class CastPlugin(private val activity: Activity, private val channel: MethodChannel) : MethodCallHandler {
     private var _playbackClient: RemotePlaybackClient? = null
@@ -45,6 +45,7 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
             call.method.equals("init") -> {
                 val appId: String = call.argument("appId")!!
                 CastOptionsProvider.AppId = appId
+                CastContext.getSharedInstance(activity)
                 CastOptionsProvider.activity = activity
                 initChromecast(result, appId)
             }
@@ -63,7 +64,9 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
             call.method.equals("play") -> {
                 val url: String = call.argument("url")!!
                 val mimeType: String = call.argument("mimeType")!!
-                play(result, url, mimeType)
+                val metadata: Map<String, String>? = call.argument("metadata")
+                val position: Long = call.argument<Long>("position")!!
+                play(result, url, mimeType, metadata, position)
             }
             call.method.equals("pause") -> pause(result)
             call.method.equals("resume") -> resume(result)
@@ -158,8 +161,10 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         result.success("control request success")
     }
 
-    private fun play(result: Result, url: String, mimeType: String) {
-        _playbackClient?.play(Uri.parse(url), mimeType, null, 0, null, object : RemotePlaybackClient.ItemActionCallback() {
+    private fun play(result: Result, url: String, mimeType: String, metadata: Map<String, String>?, position: Long) {
+        val bundle = Bundle()
+        metadata?.forEach { k, v -> bundle.putString(k, v) }
+        _playbackClient?.play(Uri.parse(url), mimeType, bundle, position, null, object : RemotePlaybackClient.ItemActionCallback() {
             override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?, itemId: String?, itemStatus: MediaItemStatus?) {
                 Log.d(TAG, "ItemPlayback OnResult= $data, $sessionId, $sessionStatus")
                 channel.invokeMethod("castMediaPlaying", itemId)

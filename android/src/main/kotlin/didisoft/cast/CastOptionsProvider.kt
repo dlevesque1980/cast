@@ -1,5 +1,6 @@
 package didisoft.cast
 
+import android.util.Log
 import android.app.Activity
 import android.content.Context
 import com.google.android.gms.cast.MediaMetadata
@@ -19,6 +20,7 @@ class CastOptionsProvider : OptionsProvider {
     }
 
     override fun getCastOptions(context: Context): CastOptions {
+        Log.d(TAG, "AppId = " + AppId + ", application = " + activity.toString())
         val notificationOptions = NotificationOptions.Builder()
                 .setActions(Arrays.asList(MediaIntentReceiver.ACTION_SKIP_NEXT,
                         MediaIntentReceiver.ACTION_TOGGLE_PLAYBACK,
