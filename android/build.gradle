@@ -2,10 +2,11 @@ group 'didisoft.cast'
 version '1.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.2.71'
+    ext.kotlin_version = '1.3.11'
     repositories {
         google()
         jcenter()
+        mavenCentral()
     }
 
     dependencies {
@@ -17,7 +18,7 @@ buildscript {
 configurations.all {
     resolutionStrategy {
         force 'com.android.support:support-v4:28.0.0'
-
+        force 'org.jetbrains.kotlin:kotlin-reflect:1.3.11'
     }
 }
 
@@ -25,6 +26,7 @@ rootProject.allprojects {
     repositories {
         google()
         jcenter()
+        mavenCentral()
     }
 }
 
@@ -48,12 +50,14 @@ android {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation "com.android.support:support-core-utils:28.0.0"
     implementation "com.android.support:mediarouter-v7:28.0.0"
     implementation "com.google.android.gms:play-services-cast:16.0.1"
     implementation "com.google.android.gms:play-services-cast-framework:16.0.1"
-    implementation 'com.squareup.moshi:moshi:1.7.0'
-    implementation 'com.squareup.moshi:moshi-kotlin:1.7.0'
-    kapt 'com.squareup.moshi:moshi-kotlin-codegen:1.7.0'
+    implementation 'com.squareup.moshi:moshi:1.8.0'
+    implementation 'com.squareup.moshi:moshi-kotlin:1.8.0'
+    implementation 'org.jmdns:jmdns:3.5.5'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.0.1'
+    kapt 'com.squareup.moshi:moshi-kotlin-codegen:1.8.0'
 }

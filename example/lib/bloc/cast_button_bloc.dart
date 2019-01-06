@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:cast/cast.dart';
 import 'package:cast/events.dart';
 import 'package:cast/route_props.dart';
+import 'package:cast_example/helper/prefs_helper.dart';
 import 'package:cast_example/receiverConst.dart';
 
 class CastButtonBloc {
   static const String sessionId = "sessionId";
-  static const String castId = "castId";
+  static const String routeIdPrefName = "routeId";
   static const String itemId = "itemId";
   static CastButtonBloc _instance;
 
@@ -42,8 +43,8 @@ class CastButtonBloc {
   }
 
   Future<dynamic> _selectRoute(RouteProps route) async {
-    final String response = await _cast.selectRoute(route.id);
-    print(response);
+    final String routeId = await _cast.selectRoute(route.id);
+    await PrefHelper.setString(routeIdPrefName, routeId);
   }
 
   Future<bool> _disconnectCast(e) async {
@@ -55,7 +56,7 @@ class CastButtonBloc {
   }
 
   Future<bool> _updateSessionValues(ConnectedEvent e) async {
-    print("connected state: ${e.stateData.toString()}, ${e.sessionId}");
+    await PrefHelper.setString("sessionId", e.sessionId);
     return e.stateData;
   }
 

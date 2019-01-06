@@ -38,6 +38,12 @@ class Cast {
     return message;
   }
 
+  Future testCall(sessionId, routeId) async {
+    var message = await _channel.invokeMethod('testCall', {'sessionId': sessionId, 'routeId': routeId});
+    _setRoutes();
+    return message;
+  }
+
   Future _setRoutes() async {
     Map routes = await _channel.invokeMethod('getRoutes');
     _putRoutes(routes);
@@ -66,7 +72,7 @@ class Cast {
     return result;
   }
 
-  Future<String> play(String url, String mimeType, {Map<String, String> metadata: null, int position: 0}) async {
+  Future<String> play(String url, String mimeType, {Map<String, String> metadata, int position: 0}) async {
     var result = await _channel.invokeMethod('play', {'url': url, 'mimeType': mimeType, 'metadata': metadata, 'position': position});
     return result;
   }

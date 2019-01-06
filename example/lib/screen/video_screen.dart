@@ -56,6 +56,7 @@ class _VideoScreenState extends State<VideoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(title: const Text('Cast example app'), actions: <Widget>[
+          IconButton(icon: Icon(Icons.add), onPressed: () => _bloc.test.add("test")),
           // action button
           CastButton(),
         ]

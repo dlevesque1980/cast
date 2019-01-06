@@ -4,6 +4,7 @@ import 'package:async/async.dart';
 import 'package:cast/cast.dart';
 import 'package:cast/events.dart';
 import 'package:cast_example/bloc/video.dart';
+import 'package:cast_example/helper/prefs_helper.dart';
 
 class VideoScreenBloc {
   Cast _cast = new Cast();
@@ -18,6 +19,8 @@ class VideoScreenBloc {
   Sink<Video> get actionQueue => _actionQueue.sink;
   Stream<List<Video>> videos;
   var _playState = StreamController<MediaPlayingEvent>();
+  var _test = StreamController<String>();
+  Sink<String> get test => _test.sink;
 
   VideoScreenBloc._() {
     var v1 = _actionQueue.stream.asyncMap(_actionVideo).asBroadcastStream();
@@ -25,7 +28,16 @@ class VideoScreenBloc {
     var v3 = _cast.onItemStatusChanged.asyncMap(itemStatusChanged).asBroadcastStream();
     videos = StreamGroup.merge([v1, v2, v3]);
 
+    _test.stream.listen(testCall);
+
     _cast.onSessionStatusChanged.listen(sessionStatusChanged);
+  }
+
+  Future<String> testCall(String something) async {
+    var sessionId = await PrefHelper.getString("sessionId");
+    var routeId = await PrefHelper.getString("routeId");
+    var message = await _cast.testCall(sessionId, routeId);
+    return message;
   }
 
   Future<List<Video>> itemStatusChanged(ItemStatusEvent event) async {
@@ -80,5 +92,6 @@ class VideoScreenBloc {
   void dispose() {
     _actionQueue.close();
     _playState.close();
+    _test.close();
   }
 }

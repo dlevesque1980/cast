@@ -1,17 +1,16 @@
 package didisoft.cast
 
 import android.app.Activity
-import android.content.Intent
+import android.content.ContentValues.TAG
+import android.content.Context
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.support.v7.media.*
 import android.support.v7.media.MediaRouter.UNSELECT_REASON_STOPPED
 import android.support.v7.media.RemotePlaybackClient.SessionActionCallback
-import android.support.v7.media.MediaItemMetadata
 import android.util.Log
 import com.google.android.gms.cast.CastMediaControlIntent
-import com.google.android.gms.cast.framework.CastContext
-import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import io.flutter.plugin.common.MethodCall
@@ -19,7 +18,16 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import java.io.IOException
+import java.net.InetAddress
+import java.net.UnknownHostException
 import java.util.*
+import javax.jmdns.JmDNS
+import javax.jmdns.ServiceEvent
+import javax.jmdns.ServiceListener
 
 internal var TAG = "FlutterCast"
 
@@ -28,8 +36,8 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
     private var _mediaRouter: MediaRouter = MediaRouter.getInstance(activity.applicationContext)
     private val _mediaRouterCallback = DidisoftMediaRouterCallback()
     private var _mediaRouteSelector: MediaRouteSelector? = null
-
-
+    private var _multicastLock: WifiManager.MulticastLock? = null
+    private var _jmdns: JmDNS? = null
 
     companion object {
         @JvmStatic
@@ -45,7 +53,6 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
             call.method.equals("init") -> {
                 val appId: String = call.argument("appId")!!
                 CastOptionsProvider.AppId = appId
-                CastContext.getSharedInstance(activity)
                 CastOptionsProvider.activity = activity
                 initChromecast(result, appId)
             }
@@ -57,6 +64,12 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
             call.method.equals("getPlayerStatus") -> {
                 val itemId: String = call.argument("itemId")!!
                 getPlayerStatus(itemId, result)
+            }
+
+            call.method.equals("testCall") -> {
+                val sessionId: String = call.argument("sessionId")!!
+                val routeId: String = call.argument("routeId")!!
+                testCall(sessionId, routeId, result)
             }
 
             call.method.equals("unselect") -> unSelectRoute(result)
@@ -76,18 +89,39 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         }
     }
 
-    private fun initChromecast(result: Result, app_id: String) {
-
+    private fun initChromecast(result: Result, app_id: String) = runBlocking<Unit> {
         if (_mediaRouteSelector == null) {
             _mediaRouteSelector = MediaRouteSelector.Builder()
                     .addControlCategory(CastMediaControlIntent.categoryForCast(app_id))
                     .addControlCategory(MediaControlIntent.CATEGORY_REMOTE_PLAYBACK)
+                    //.addSelector(_castContext?.mergedSelector!!)
                     .build()
         } else {
             _mediaRouter.removeCallback(_mediaRouterCallback)
         }
 
+        launch(Dispatchers.Default) { // will get dispatched to DefaultDispatcher
+            try {
+
+                Log.i(TAG, "Starting Mutlicast Lock...");
+                val wifi = activity.applicationContext?.getSystemService(Context.WIFI_SERVICE) as WifiManager
+
+                _multicastLock = wifi?.createMulticastLock(activity.javaClass.name)
+                _multicastLock?.setReferenceCounted(true)
+                _multicastLock?.acquire()
+                Log.i(TAG, "Starting ZeroConf probe....")
+
+                val addr = getLocalIpAddress()
+                val hostName = addr?.hostName
+                _jmdns = JmDNS.create(addr, hostName)
+                _jmdns?.addServiceListener("_googlecast._tcp.local.", SampleListerner())
+            } catch (e: IOException) {
+                Log.d(TAG, e.message)
+            }
+        }
+
         _mediaRouter.addCallback(_mediaRouteSelector!!, _mediaRouterCallback, MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY)
+
 
         result.success("chromecast initalized!")
 
@@ -106,7 +140,7 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
                 .build()
         val jsonAdapter = moshi.adapter(RouteProps::class.java)
 
-        newRoutes.associateByTo(mapped, { it.name }, { jsonAdapter.toJson(RouteProps(it.connectionState, it.id)) })
+        newRoutes.associateByTo(mapped, { it.name }, { jsonAdapter.toJson(RouteProps(it.connectionState, it.id, null)) })
 
         result.success(mapped)
     }
@@ -114,10 +148,10 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
     private fun selectRoute(result: Result, castId: String) {
         Log.d(TAG, "selectRoute: $castId")
         val item = _mediaRouter.routes.firstOrNull { it.id == castId }
+        //val item = _mediaRouter.routes.firstOrNull { it.id.contains(castId) }
         if (item != null) {
-            _mediaRouter.selectRoute(item)
-
-            result.success("route selected")
+            item.select()
+            result.success(item.id)
             return
         }
 
@@ -142,6 +176,28 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         result.success("route unselected")
     }
 
+    private fun getLocalIpAddress(): InetAddress? {
+        val wifiManager = activity.applicationContext?.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val wifiInfo = wifiManager!!.connectionInfo
+        val ipAddress = wifiInfo.ipAddress
+        var address: InetAddress? = null
+        try {
+            address = InetAddress.getByName(String.format(Locale.ENGLISH,
+                    "%d.%d.%d.%d", ipAddress and 0xff, ipAddress shr 8 and 0xff, ipAddress shr 16 and 0xff, ipAddress shr 24 and 0xff))
+        } catch (e: UnknownHostException) {
+            e.printStackTrace()
+        }
+
+        return address
+    }
+
+    private fun testCall(sessionId: String, routeId: String, result: Result) = runBlocking<Unit> {
+        // val route = _mediaRouter.routes.firstOrNull { it.id == routeId }
+
+
+        result.success("control request success")
+    }
+
     private fun getPlayerStatus(itemId: String, result: Result) {
 
         if (_playbackClient?.hasSession()!!) {
@@ -163,7 +219,13 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
 
     private fun play(result: Result, url: String, mimeType: String, metadata: Map<String, String>?, position: Long) {
         val bundle = Bundle()
-        metadata?.forEach { k, v -> bundle.putString(k, v) }
+
+        if (metadata != null) {
+            for ((key, value) in metadata) {
+                bundle.putString(key, value)
+            }
+        }
+
         _playbackClient?.play(Uri.parse(url), mimeType, bundle, position, null, object : RemotePlaybackClient.ItemActionCallback() {
             override fun onResult(data: Bundle?, sessionId: String?, sessionStatus: MediaSessionStatus?, itemId: String?, itemStatus: MediaItemStatus?) {
                 Log.d(TAG, "ItemPlayback OnResult= $data, $sessionId, $sessionStatus")
@@ -218,6 +280,7 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
 
     private fun disposeChromecast(result: Result) {
         _mediaRouter.removeCallback(_mediaRouterCallback)
+        _jmdns?.unregisterAllServices()
         result.success("callback removed")
     }
 
@@ -229,7 +292,7 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
                 .build()
         val jsonAdapter = moshi.adapter(RouteProps::class.java)
 
-        arguments[name] = jsonAdapter.toJson(RouteProps(route.connectionState, route.id))
+        arguments[name] = jsonAdapter.toJson(RouteProps(route.connectionState, route.id, null))
         return arguments
     }
 
@@ -319,9 +382,34 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         }
     }
 
-    private inner class StatusListener: RemoteMediaClient.ProgressListener {
-        override fun onProgressUpdated(p0: Long, p1: Long) {
-            Log.d(TAG, "OnProgressUpdated: $p0, $p1")
+    private inner class SampleListerner : ServiceListener {
+        override fun serviceAdded(event: ServiceEvent?) {
+            Log.d(TAG, "serviceAdded: $event")
+
         }
+
+        override fun serviceRemoved(event: ServiceEvent?) {
+            Log.d(TAG, "serviceRemoved: $event")
+        }
+
+        override fun serviceResolved(event: ServiceEvent?) {
+            Log.d(TAG, "serviceResolved: $event")
+            val arguments = HashMap<String, String>()
+            val fn = event?.info?.getPropertyString("fn")
+            val id = event?.info?.getPropertyString("id")
+            val address = event?.info?.hostAddresses?.first()
+            val moshi = Moshi.Builder()
+                    .add(KotlinJsonAdapterFactory())
+                    .build()
+            val jsonAdapter = moshi.adapter(RouteProps::class.java)
+
+            if (!fn.isNullOrEmpty()) {
+                arguments[fn] = jsonAdapter.toJson(RouteProps(0, id.orEmpty(),address))
+                channel.invokeMethod("castListAdd", arguments)
+            }
+
+        }
+
     }
+
 }
