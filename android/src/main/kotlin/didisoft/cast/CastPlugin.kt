@@ -44,9 +44,6 @@ class CastPlugin(private val activity: Activity, private val channel: MethodChan
         when {
             call.method.equals("init") -> {
                 val appId: String = call.argument("appId")!!
-                CastOptionsProvider.AppId = appId
-                CastContext.getSharedInstance(activity)
-                CastOptionsProvider.activity = activity
                 initChromecast(result, appId)
             }
             call.method.equals("select") -> {

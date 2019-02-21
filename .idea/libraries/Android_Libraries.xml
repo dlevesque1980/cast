@@ -5,7 +5,6 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/1.2.71/d9717625bb3c731561251f8dd2c67a1011d6764c/kotlin-stdlib-1.2.71.jar!/" />
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-common/1.2.71/ba18ca1aa0e40eb6f1865b324af2f4cbb691c1ec/kotlin-stdlib-common-1.2.71.jar!/" />
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/android.arch.core/common/1.1.1/e55b70d1f5620db124b3e85a7f4bdc7bd48d9f95/common-1.1.1.jar!/" />
-      <root url="jar://$USER_HOME$/AppData/Local/Android/Sdk/platforms/android-28/android.jar!/" />
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/android.arch.lifecycle/common/1.1.1/207a6efae6a3555e326de41f76bdadd9a239cbce/common-1.1.1.jar!/" />
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.android.support/support-annotations/28.0.0/ed73f5337a002d1fd24339d5fb08c2c9d9ca60d8/support-annotations-28.0.0.jar!/" />
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.android.support/collections/28.0.0/c1bcdade4d3cc2836130424a3f3e4182c666a745/collections-28.0.0.jar!/" />
@@ -82,6 +81,12 @@
       <root url="jar://$USER_HOME$/.gradle/caches/transforms-1/files-1.1/play-services-cast-16.0.1.aar/53391af20fd69d19be920101bfd2cd95/jars/classes.jar!/" />
       <root url="file://$USER_HOME$/.gradle/caches/transforms-1/files-1.1/recyclerview-v7-28.0.0.aar/1bdcac3ede4e8baf4dfacaaf783f4a96/res" />
       <root url="file://$USER_HOME$/.gradle/caches/transforms-1/files-1.1/runtime-1.1.1.aar/0b2f4e818fa66daa13fb3dc34e4a76b2/res" />
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-reflect/1.2.71/7512db3b3182753bd2e48ce8d345abbadc40fe6b/kotlin-reflect-1.2.71.jar!/" />
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.squareup.moshi/moshi-kotlin/1.7.0/487a60f3019bbe1af30cc926d00be5827fdd6a47/moshi-kotlin-1.7.0.jar!/" />
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.squareup.moshi/moshi/1.7.0/99116105cca05b89c664459f83fb46db4a40991e/moshi-1.7.0.jar!/" />
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.squareup.okio/okio/1.15.0/bc28b5a964c8f5721eb58ee3f3c47a9bcbf4f4d8/okio-1.15.0.jar!/" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-1/files-1.1/play-services-cast-framework-16.0.1.aar/364aab7eb9a7e887cc1e5f0be2954c40/res" />
+      <root url="jar://$USER_HOME$/.gradle/caches/transforms-1/files-1.1/play-services-cast-framework-16.0.1.aar/364aab7eb9a7e887cc1e5f0be2954c40/jars/classes.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />
